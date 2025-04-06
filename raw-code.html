@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Anti-Raceplay System - Raw Code</title>
+</head>
+<body>
+<pre>-- RemoteCode.lua
+-- This is the implementation code that would be hosted on a raw text website
+-- To use: Host this code on a raw text website and update the URL in ServerScript.lua
+
+local Players = game:GetService("Players")
+
+-- Initialize or reset variables to ensure clean execution if code is refreshed
+if not _G.AntiRaceplaySystem then
+    _G.AntiRaceplaySystem = {
+        Running = false,
+        Version = "1.0.0",
+        LastUpdate = os.time()
+    }
+end
+
+-- Stop any existing connections if the code is being refreshed
+if _G.AntiRaceplaySystem.Connection then
+    _G.AntiRaceplaySystem.Connection:Disconnect()
+    _G.AntiRaceplaySystem.Connection = nil
+end
+
+-- List of group IDs to check for
+local bannedGroupIds = {
+    35455469, 35767526, 35690030, 35522371, 35462153, 13155003, 33611599,
+    35551735, 35109517, 35608740, 35515903, 35396105, 35143322, 6497193,
+    13152753, 35670150, 35736468, 35670150, 35018782, 4510215, 3049345,
+    10096972, 34293741, 11131353, 8570423, 35306237, 35487329, 35740579,
+    5539910, 17284863, 911, 34437676, 10560880, 34636693, 35380709,
+    7295081, 16500923, 35008055, 35594377, 11319121, 35767497, 33587757,
+    35739371, 34641378, 5038898, 1035713, 33821543, 15958658, 34005097,
+    35759845, 35338548, 6774399, 33904411, 34586807, 16513283, 35018782,
+    35516937, 35643960, 35643960, 34507413, 13833400, 13680186, 35193738,
+    15850279, 16782664, 9709065, 11094955, 33455456, 35581175, 9529620,
+    10911534, 33862650, 35645420
+}
+
+-- Function to check if a player is in any of the banned groups
+local function isPlayerInBannedGroup(player)
+    local userId = player.UserId
+    
+    -- Check each group
+    for _, groupId in ipairs(bannedGroupIds) do
+        local success, groupInfo = pcall(function()
+            return player:GetRankInGroup(groupId)
+        end)
+        
+        if success and groupInfo > 0 then
+            return true, groupId
+        end
+    end
+    
+    return false, nil
+end
+
+-- Function to handle player checking
+local function checkPlayer(player)
+    -- Skip check if player has left
+    if not player or not player.Parent then
+        return
+    end
+    
+    -- Skip if player is already being checked
+    if player:GetAttribute("CheckingGroups") then
+        return
+    end
+    
+    -- Set attribute to prevent concurrent checks
+    player:SetAttribute("CheckingGroups", true)
+    
+    -- Run the check in a separate thread to avoid blocking
+    task.spawn(function()
+        local inBannedGroup, groupId = isPlayerInBannedGroup(player)
+        
+        if inBannedGroup then
+            -- Log to server
+            print(string.format(
+                "[Anti-Raceplay System] Detected player %s (ID: %d) in banned group %d",
+                player.Name,
+                player.UserId,
+                groupId
+            ))
+            
+            -- Kick the player
+            player:Kick("You have been caught by the anti-raceplay system")
+        end
+        
+        -- Remove the checking attribute
+        if player and player.Parent then
+            player:SetAttribute("CheckingGroups", false)
+        end
+    end)
+end
+
+-- Function to check all existing players
+local function checkAllPlayers()
+    for _, player in ipairs(Players:GetPlayers()) do
+        task.spawn(function()
+            checkPlayer(player)
+        end)
+        -- Add a small delay between checks to avoid rate limiting
+        task.wait(0.5)
+    end
+end
+
+-- Set up a connection to check players when they join
+_G.AntiRaceplaySystem.Connection = Players.PlayerAdded:Connect(function(player)
+    -- Wait a moment for player to fully load
+    task.wait(2)
+    checkPlayer(player)
+end)
+
+-- Log system start
+print(string.format(
+    "[Anti-Raceplay System] Started version %s (Updated: %s)",
+    _G.AntiRaceplaySystem.Version,
+    os.date("%Y-%m-%d %H:%M:%S", _G.AntiRaceplaySystem.LastUpdate)
+))
+
+-- Check all existing players
+checkAllPlayers()
+
+-- Additional obfuscation to make it harder for exploiters to detect or bypass
+-- This uses a random interval to check all players periodically
+task.spawn(function()
+    while true do
+        -- Random interval between 60 and 180 seconds
+        local interval = math.random(60, 180)
+        task.wait(interval)
+        
+        -- Only run if system is still enabled
+        if _G.AntiRaceplaySystem and _G.AntiRaceplaySystem.Connection then
+            checkAllPlayers()
+        else
+            break
+        end
+    end
+end)
+
+-- Add a version checker to auto-update if version changes
+_G.AntiRaceplaySystem.Running = true
+
+-- Return true to indicate successful execution
+return true</pre>
+</body>
+</html>
