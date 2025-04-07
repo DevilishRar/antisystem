@@ -1,0 +1,12 @@
+{
+  "config": {
+    "groupId": 35645420,
+    "whitelistedRoles": {
+      "255": true,
+      "11": true,
+      "10": true
+    },
+    "kickMessage": "Unauthorized Studio activity detected.",
+    "loggingEnabled": true
+  }
+}
